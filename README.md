@@ -61,4 +61,4 @@ The package consists of two primary nodes:
 
 ```bash
 cd ~/workspaces/ros2_ws/src
-git clone https://github.com/yourusername/object_manager.git
+git clone [https://github.com/yourusername/object_manager.git](https://github.com/pastoriomarco/object_manager.git)
