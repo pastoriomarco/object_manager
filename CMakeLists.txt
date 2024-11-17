@@ -62,12 +62,13 @@ add_executable(collision_spawner src/collision_spawner.cpp)
 # Link libraries and dependencies for collision_spawner
 ament_target_dependencies(collision_spawner
   rclcpp
-  geometry_msgs
-  shape_msgs
+  moveit_ros_planning_interface
   tf2
   tf2_ros
   tf2_geometry_msgs
-  moveit_ros_planning_interface  # Added MoveIt dependency
+  geometry_msgs
+  shape_msgs
+  moveit_msgs
   rosidl_default_runtime
 )
 

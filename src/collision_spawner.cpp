@@ -1,7 +1,8 @@
 // src/collision_spawner.cpp
 
 #include <rclcpp/rclcpp.hpp>
-#include "object_manager/object_manager.hpp"  // Ensure this include is necessary
+#include <object_manager/srv/add_collision_object.hpp>
+#include <moveit/planning_scene_interface/planning_scene_interface.h>
 #include <geometry_msgs/msg/pose.hpp>
 #include <shape_msgs/msg/solid_primitive.hpp>
 #include <memory>
@@ -9,7 +10,6 @@
 #include <vector>
 #include <random>
 #include <chrono>
-#include <thread>
 #include <cmath> // For M_PI
 #include <tf2/LinearMath/Quaternion.h> // For quaternion operations
 
@@ -19,34 +19,65 @@ public:
     CollisionSpawner()
     : Node("collision_spawner"), rng_(std::random_device{}())
     {
-        // Create a client for the AddCollisionObject service
-        client_ = this->create_client<object_manager::srv::AddCollisionObject>("/add_collision_object");
+        // Initialize PlanningSceneInterface
+        planning_scene_interface_ = std::make_shared<moveit::planning_interface::PlanningSceneInterface>();
 
-        // Wait for the service to be available
-        while (!client_->wait_for_service(std::chrono::seconds(1))) {
+        // Create a client for the AddCollisionObject service
+        add_object_client_ = this->create_client<object_manager::srv::AddCollisionObject>("/add_collision_object");
+
+        // Wait for the AddCollisionObject service to be available
+        while (!add_object_client_->wait_for_service(std::chrono::seconds(1))) {
             if (!rclcpp::ok()) {
-                RCLCPP_ERROR(this->get_logger(), "Interrupted while waiting for the service. Exiting.");
+                RCLCPP_ERROR(this->get_logger(), "Interrupted while waiting for the /add_collision_object service. Exiting.");
                 return;
             }
             RCLCPP_INFO(this->get_logger(), "Service /add_collision_object not available, waiting...");
         }
 
-        // Create a timer to spawn obstacle after 2 seconds
+        // Remove existing spawner objects
+        remove_existing_spawner_objects();
+
+        // Spawn new objects after removal
+        // Spawn obstacle after 0.5 second
         spawn_obstacle_timer_ = this->create_wall_timer(
-            std::chrono::seconds(1),
+            std::chrono::milliseconds(500),
             std::bind(&CollisionSpawner::spawn_obstacle, this));
 
-        // Create a timer to spawn graspable after 4 seconds
+        // Spawn graspable cylinder after 1 seconds
         spawn_graspable_timer_ = this->create_wall_timer(
-            std::chrono::seconds(2),
+            std::chrono::seconds(1),
             std::bind(&CollisionSpawner::spawn_graspable, this));
     }
 
 private:
+    void remove_existing_spawner_objects()
+    {
+        // Get all current collision objects
+        std::map<std::string, moveit_msgs::msg::CollisionObject> current_objects_map = planning_scene_interface_->getObjects();
+
+        // Collect IDs of objects that end with '_spawner'
+        std::vector<std::string> objects_to_remove;
+        for (const auto &pair : current_objects_map) {
+            const std::string &id = pair.first;
+            if (id.size() >= 8 && id.substr(id.size() - 8) == "_spawner") {
+                objects_to_remove.push_back(id);
+            }
+        }
+
+        if (objects_to_remove.empty()) {
+            RCLCPP_INFO(this->get_logger(), "No existing spawner objects to remove.");
+            return;
+        }
+
+        // Remove the filtered objects
+        planning_scene_interface_->removeCollisionObjects(objects_to_remove);
+        RCLCPP_INFO(this->get_logger(), "Requested removal of %zu existing spawner objects.", objects_to_remove.size());
+    }
+
     void spawn_obstacle()
     {
         auto request = std::make_shared<object_manager::srv::AddCollisionObject::Request>();
-        request->id = "obstacle_wall";
+        request->id = "obstacle_wall_spawner"; // Append '_spawner' postfix
         request->shape = "box";
         request->dimensions = {0.5, 0.02, 0.2}; // x, y, z dimensions
 
@@ -60,14 +91,14 @@ private:
         request->pose.orientation.w = 1.0;
 
         // Send the service request asynchronously
-        client_->async_send_request(request,
+        add_object_client_->async_send_request(request,
             std::bind(&CollisionSpawner::spawn_obstacle_response_callback, this, std::placeholders::_1));
     }
 
     void spawn_graspable()
     {
         auto request = std::make_shared<object_manager::srv::AddCollisionObject::Request>();
-        request->id = "graspable_cylinder";
+        request->id = "graspable_cylinder_spawner"; // Append '_spawner' postfix
         request->shape = "cylinder";
         request->dimensions = {0.1, 0.005}; // height, radius
 
@@ -95,37 +126,54 @@ private:
         request->pose.orientation.w = q.w();
 
         // Send the service request asynchronously
-        client_->async_send_request(request,
+        add_object_client_->async_send_request(request,
             std::bind(&CollisionSpawner::spawn_graspable_response_callback, this, std::placeholders::_1));
     }
 
     void spawn_obstacle_response_callback(rclcpp::Client<object_manager::srv::AddCollisionObject>::SharedFuture future)
     {
-        auto response = future.get();
-        if (response->success) {
-            RCLCPP_INFO(this->get_logger(), "Obstacle '%s' added successfully.", "obstacle_wall");
-        } else {
-            RCLCPP_ERROR(this->get_logger(), "Failed to add obstacle '%s': %s", "obstacle_wall", response->message.c_str());
-        }
+        try {
+            auto response = future.get();
+            if (response->success) {
+                RCLCPP_INFO(this->get_logger(), "Obstacle '%s' added successfully.", "obstacle_wall_spawner");
+            } else {
+                RCLCPP_ERROR(this->get_logger(), "Failed to add obstacle '%s': %s", "obstacle_wall_spawner", response->message.c_str());
+            }
 
-        // Cancel the obstacle timer after spawning
-        spawn_obstacle_timer_->cancel();
+            // Cancel the obstacle timer after spawning
+            if (spawn_obstacle_timer_) {
+                spawn_obstacle_timer_->cancel();
+                spawn_obstacle_timer_.reset();
+            }
+        }
+        catch (const std::exception &e) {
+            RCLCPP_ERROR(this->get_logger(), "Exception while adding obstacle: %s", e.what());
+        }
     }
 
     void spawn_graspable_response_callback(rclcpp::Client<object_manager::srv::AddCollisionObject>::SharedFuture future)
     {
-        auto response = future.get();
-        if (response->success) {
-            RCLCPP_INFO(this->get_logger(), "Graspable cylinder '%s' added successfully.", "graspable_cylinder");
-        } else {
-            RCLCPP_ERROR(this->get_logger(), "Failed to add graspable cylinder '%s': %s", "graspable_cylinder", response->message.c_str());
-        }
+        try {
+            auto response = future.get();
+            if (response->success) {
+                RCLCPP_INFO(this->get_logger(), "Graspable cylinder '%s' added successfully.", "graspable_cylinder_spawner");
+            } else {
+                RCLCPP_ERROR(this->get_logger(), "Failed to add graspable cylinder '%s': %s", "graspable_cylinder_spawner", response->message.c_str());
+            }
 
-        // Cancel the graspable timer after spawning
-        spawn_graspable_timer_->cancel();
+            // Cancel the graspable timer after spawning
+            if (spawn_graspable_timer_) {
+                spawn_graspable_timer_->cancel();
+                spawn_graspable_timer_.reset();
+            }
+        }
+        catch (const std::exception &e) {
+            RCLCPP_ERROR(this->get_logger(), "Exception while adding graspable cylinder: %s", e.what());
+        }
     }
 
-    rclcpp::Client<object_manager::srv::AddCollisionObject>::SharedPtr client_;
+    rclcpp::Client<object_manager::srv::AddCollisionObject>::SharedPtr add_object_client_;
+    std::shared_ptr<moveit::planning_interface::PlanningSceneInterface> planning_scene_interface_;
     rclcpp::TimerBase::SharedPtr spawn_obstacle_timer_;
     rclcpp::TimerBase::SharedPtr spawn_graspable_timer_;
     std::mt19937 rng_;
