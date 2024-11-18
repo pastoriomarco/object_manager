@@ -231,9 +231,9 @@ private:
         geometry_msgs::msg::Pose pose;
 
         // Define spawn area boundaries (adjust as needed)
-        std::uniform_real_distribution<double> dist_x(-1.0, 1.0);
-        std::uniform_real_distribution<double> dist_y(-1.0, 1.0);
-        std::uniform_real_distribution<double> dist_z(0.0, 1.0);
+        std::uniform_real_distribution<double> dist_x(0.15, 0.3);
+        std::uniform_real_distribution<double> dist_y(-0.25, 0.25);
+        std::uniform_real_distribution<double> dist_z(0.05, 0.25);
         std::uniform_real_distribution<double> dist_angle(0, 2 * M_PI);
 
         pose.position.x = dist_x(rng_);

@@ -21,10 +21,10 @@ objects:
       orientation: {roll: 0.0, pitch: 1.57, yaw: 0.0}
 
 # example for random object  
-  # - name: "graspable_random_cylinder"
-  #   type: "cylinder"
-  #   dimensions: [0.1, 0.005]
-  #   # No pose provided; will be placed randomly
+  - name: "graspable_random_cylinder"
+    type: "cylinder"
+    dimensions: [0.1, 0.005]
+    # No pose provided; will be placed randomly
 
 # example for sphere object:  
   # - name: "custom_sphere"
