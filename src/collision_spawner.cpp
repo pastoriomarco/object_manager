@@ -19,6 +19,10 @@ public:
     CollisionSpawner()
     : Node("collision_spawner"), rng_(std::random_device{}())
     {
+        // Create parameter for fixed or random graspable position
+        this->declare_parameter<bool>("graspable_is_random", false);
+        bool graspable_is_random_ =  this->get_parameter("graspable_is_random").as_bool();
+
         // Initialize PlanningSceneInterface
         planning_scene_interface_ = std::make_shared<moveit::planning_interface::PlanningSceneInterface>();
 
@@ -46,7 +50,7 @@ public:
         // Spawn graspable cylinder after 1 seconds
         spawn_graspable_timer_ = this->create_wall_timer(
             std::chrono::seconds(1),
-            std::bind(&CollisionSpawner::spawn_graspable, this));
+            std::bind(graspable_is_random_ ? &CollisionSpawner::spawn_graspable_random : &CollisionSpawner::spawn_graspable, this));
     }
 
 private:
@@ -79,16 +83,25 @@ private:
         auto request = std::make_shared<object_manager::srv::AddCollisionObject::Request>();
         request->id = "obstacle_wall_spawner"; // Append '_spawner' postfix
         request->shape = "box";
-        request->dimensions = {0.5, 0.02, 0.2}; // x, y, z dimensions
+        request->dimensions = {0.5, 0.02, 0.6}; // x, y, z dimensions
 
         // Define the pose of the obstacle
-        request->pose.position.x = 0.35;
-        request->pose.position.y = -0.1;
-        request->pose.position.z = 0.1;
-        request->pose.orientation.x = 0.0;
-        request->pose.orientation.y = 0.0;
-        request->pose.orientation.z = 0.0;
-        request->pose.orientation.w = 1.0;
+        request->pose.position.x = 0.0;
+        request->pose.position.y = 0.4;
+        request->pose.position.z = 0.3;
+
+        // Generate a random orientation using tf2::Quaternion
+        double roll = 0.0;
+        double pitch = 0.0;
+        double yaw = 0.0;
+        tf2::Quaternion q;
+        q.setRPY(roll, pitch, yaw);
+        q.normalize(); // Ensure the quaternion is normalized
+
+        request->pose.orientation.x = q.x();
+        request->pose.orientation.y = q.y();
+        request->pose.orientation.z = q.z();
+        request->pose.orientation.w = q.w();
 
         // Send the service request asynchronously
         add_object_client_->async_send_request(request,
@@ -96,6 +109,36 @@ private:
     }
 
     void spawn_graspable()
+    {
+        auto request = std::make_shared<object_manager::srv::AddCollisionObject::Request>();
+        request->id = "graspable_cylinder_spawner"; // Append '_spawner' postfix
+        request->shape = "cylinder";
+        request->dimensions = {0.1, 0.005}; // height, radius
+
+        // Define the pose of the obstacle
+        request->pose.position.x = 0.0;
+        request->pose.position.y = 0.2;
+        request->pose.position.z = 0.005;
+
+        // Generate a random orientation using tf2::Quaternion
+        double roll = 0.0;
+        double pitch = M_PI / 2;
+        double yaw = 0.0;
+        tf2::Quaternion q;
+        q.setRPY(roll, pitch, yaw);
+        q.normalize(); // Ensure the quaternion is normalized
+
+        request->pose.orientation.x = q.x();
+        request->pose.orientation.y = q.y();
+        request->pose.orientation.z = q.z();
+        request->pose.orientation.w = q.w();
+
+        // Send the service request asynchronously
+        add_object_client_->async_send_request(request,
+            std::bind(&CollisionSpawner::spawn_graspable_response_callback, this, std::placeholders::_1));
+    }
+
+    void spawn_graspable_random()
     {
         auto request = std::make_shared<object_manager::srv::AddCollisionObject::Request>();
         request->id = "graspable_cylinder_spawner"; // Append '_spawner' postfix
@@ -170,6 +213,21 @@ private:
         catch (const std::exception &e) {
             RCLCPP_ERROR(this->get_logger(), "Exception while adding graspable cylinder: %s", e.what());
         }
+    }
+    
+    // Helper function to convert RPY to geometry_msgs::msg::Quaternion
+    geometry_msgs::msg::Quaternion rpyToQuaternion(double roll, double pitch, double yaw)
+    {
+        tf2::Quaternion q;
+        q.setRPY(roll, pitch, yaw);
+        q.normalize(); // Ensure the quaternion is normalized
+
+        geometry_msgs::msg::Quaternion q_msg;
+        q_msg.x = q.x();
+        q_msg.y = q.y();
+        q_msg.z = q.z();
+        q_msg.w = q.w();
+        return q_msg;
     }
 
     rclcpp::Client<object_manager::srv::AddCollisionObject>::SharedPtr add_object_client_;
