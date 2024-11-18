@@ -91,17 +91,7 @@ private:
         request->pose.position.z = 0.3;
 
         // Generate a random orientation using tf2::Quaternion
-        double roll = 0.0;
-        double pitch = 0.0;
-        double yaw = 0.0;
-        tf2::Quaternion q;
-        q.setRPY(roll, pitch, yaw);
-        q.normalize(); // Ensure the quaternion is normalized
-
-        request->pose.orientation.x = q.x();
-        request->pose.orientation.y = q.y();
-        request->pose.orientation.z = q.z();
-        request->pose.orientation.w = q.w();
+        request->pose.orientation = rpyToQuaternion(0.0, 0.0, 0.0);
 
         // Send the service request asynchronously
         add_object_client_->async_send_request(request,
@@ -121,17 +111,7 @@ private:
         request->pose.position.z = 0.005;
 
         // Generate a random orientation using tf2::Quaternion
-        double roll = 0.0;
-        double pitch = M_PI / 2;
-        double yaw = 0.0;
-        tf2::Quaternion q;
-        q.setRPY(roll, pitch, yaw);
-        q.normalize(); // Ensure the quaternion is normalized
-
-        request->pose.orientation.x = q.x();
-        request->pose.orientation.y = q.y();
-        request->pose.orientation.z = q.z();
-        request->pose.orientation.w = q.w();
+        request->pose.orientation = rpyToQuaternion(0.0, M_PI / 2, 0.0);
 
         // Send the service request asynchronously
         add_object_client_->async_send_request(request,
@@ -156,17 +136,7 @@ private:
         request->pose.position.z = dist_z(rng_);
 
         // Generate a random orientation using tf2::Quaternion
-        double roll = dist_angle(rng_);
-        double pitch = dist_angle(rng_);
-        double yaw = dist_angle(rng_);
-        tf2::Quaternion q;
-        q.setRPY(roll, pitch, yaw);
-        q.normalize(); // Ensure the quaternion is normalized
-
-        request->pose.orientation.x = q.x();
-        request->pose.orientation.y = q.y();
-        request->pose.orientation.z = q.z();
-        request->pose.orientation.w = q.w();
+        request->pose.orientation = rpyToQuaternion(dist_angle(rng_), dist_angle(rng_), dist_angle(rng_));
 
         // Send the service request asynchronously
         add_object_client_->async_send_request(request,
