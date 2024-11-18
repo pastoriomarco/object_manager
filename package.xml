@@ -6,7 +6,7 @@
   <version>0.1.0</version>
   <description>Package to manage graspable objects and obstacles for xArm robots.</description>
 
-  <maintainer email="tndlux@todo.todo">tndlux</maintainer>
+  <maintainer email="pastoriomarco@gmail.com">tndlux</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
