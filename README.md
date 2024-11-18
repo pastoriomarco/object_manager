@@ -28,7 +28,7 @@ The **Object Manager** is a ROS 2 package designed to manage collision objects w
 - **Add Collision Objects:** Easily add various shapes (box, cylinder, sphere) as collision objects to the planning scene.
 - **Remove Collision Objects:** Remove specific or all previously added collision objects.
 - **Automated Spawning:** Automatically remove existing spawner objects and spawn new ones with designated postfixes.
-- **Configurability:** Customize frame IDs and object parameters through ROS 2 parameters.
+- **Configurability:** Customize object properties through a YAML configuration file.
 - **Integration with MoveIt:** Leverages MoveIt's Planning Scene Interface for seamless integration with motion planning.
 
 ## Architecture
@@ -45,10 +45,12 @@ The package consists of two primary nodes:
 2. **Collision Spawner Node (`collision_spawner`):**
    - **Functionality:**
      - Upon initialization, it removes all existing spawner objects (objects with IDs ending in `_spawner`).
-     - Spawns new collision objects with `_spawner` postfixes to maintain a clean environment.
+     - Reads a YAML configuration file to spawn new collision objects with `_spawner` postfixes.
+     - Objects without a specified pose are placed at random positions within predefined boundaries.
    - **Objects Spawned:**
      - **Obstacle:** A box-shaped obstacle.
-     - **Graspable Cylinder:** A randomly positioned and oriented cylinder.
+     - **Graspable Cylinder:** A cylinder, optionally with a specified or random pose.
+     - **Custom Sphere:** A sphere, optionally with a specified or random pose.
 
 ## Installation
 
@@ -56,6 +58,7 @@ The package consists of two primary nodes:
 
 - **ROS 2:** Ensure you have ROS 2 (Humble Hawksbill or later) installed.
 - **MoveIt 2:** Install MoveIt 2 for motion planning capabilities.
+- **yaml-cpp:** Required for parsing YAML configuration files.
 
 ### Clone the Repository
 

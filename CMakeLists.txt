@@ -19,6 +19,7 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(shape_msgs REQUIRED)
 find_package(moveit_msgs REQUIRED)
+find_package(yaml-cpp REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 # Add service files
@@ -69,12 +70,14 @@ ament_target_dependencies(collision_spawner
   geometry_msgs
   shape_msgs
   moveit_msgs
+  yaml-cpp
   rosidl_default_runtime
 )
 
 # Link generated interfaces
 target_link_libraries(collision_spawner
   ${cpp_typesupport_target}
+  yaml-cpp
 )
 
 # Install executables
@@ -89,8 +92,8 @@ install(DIRECTORY srv
   DESTINATION share/${PROJECT_NAME}
 )
 
-# Install launch files
-install(DIRECTORY launch
+# Install launch and config files
+install(DIRECTORY launch config
   DESTINATION share/${PROJECT_NAME}/
 )
 
