@@ -18,6 +18,7 @@ def generate_launch_description():
             package='object_manager',
             executable='collision_spawner',
             name='collision_spawner',
-            output='screen'
+            output='screen',
+            parameters=[{'graspable_is_random': False}]
         )
     ])
